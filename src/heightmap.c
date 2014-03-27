@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <float.h>
 #include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -58,6 +59,7 @@ Heightmap *Heightmap_read(const char *filename)
 	}
 
 	map = malloc(sizeof(Heightmap));
+	map->normal_map = NULL;
 
 	fscanf(fd, "%lu ", &map->width);
 	fscanf(fd, "%lu", &map->height);
@@ -92,6 +94,68 @@ void Heightmap_normalize(Heightmap *map)
 	}
 	map->maxZ /= map->maxZ;
 	map->minZ /= map->maxZ;
+}
+
+void Heightmap_calculate_normals(Heightmap *map)
+{
+	int x, y;
+
+	map->normal_map = malloc(3*map->width*map->height*sizeof(float));
+	memset(map->normal_map, 0, 3*map->width*map->height*sizeof(float));
+
+	for (y=0; y<map->height; ++y) {
+		for (x=0; x<map->width; ++x) {
+			int k = 3*(map->height*y + x);
+
+			// corner cases
+			if (x == 0 || x == map->width-1 || y == 0 || y == map->height-1) {
+				map->normal_map[k+0] = 0;
+				map->normal_map[k+1] = 0;
+				map->normal_map[k+2] = 1.0;
+				continue;
+			}
+
+			// dx: Sobel filter
+			//  -1  0  1
+			//  -2  0  2
+			//  -1  0  1
+			//
+			// dy: Sobel filter
+			//  -1 -2 -1
+			//   0  0  0
+			//   1  2  1
+			float tl = Heightmap_get(map, x-1, y-1);
+			float l  = Heightmap_get(map, x-1, y  );
+			float bl = Heightmap_get(map, x-1, y+1);
+			float b  = Heightmap_get(map, x,   y+1);
+			float br = Heightmap_get(map, x+1, y+1);
+			float r  = Heightmap_get(map, x+1, y  );
+			float tr = Heightmap_get(map, x+1, y-1);
+			float t  = Heightmap_get(map, x,   y-1);
+
+			float dx = tr + 2 * r + br - tl - 2 * l - bl;
+			float dy = bl + 2 * b + br - tl - 2 * t - tr;
+
+			// trial & error value.
+			float str = 32.0;
+
+			float length = sqrtf(dx*dx + dy*dy + 1.0/str*1.0/str);
+
+			map->normal_map[k+0] = dx / length;
+			map->normal_map[k+1] = dy / length;
+			map->normal_map[k+2] = 1.0 / (str*length);
+		}
+	}
+}
+
+void Heightmap_get_normal(Heightmap *map, int x, int y, float *nx, float *ny, float *nz)
+{
+	assert(x >= 0 && x < map->width);
+	assert(y >= 0 && x < map->height);
+	int k = 3*(map->height*y + x);
+	*nx = map->normal_map[k+0];
+	*ny = map->normal_map[k+1];
+	*nz = map->normal_map[k+2];
 }
 
 float Heightmap_get(Heightmap *map, int x, int y)

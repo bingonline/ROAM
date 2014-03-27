@@ -29,6 +29,7 @@ TerrainPatch::TerrainPatch(const char *fn, int offset_x, int offset_y)
 	}
 
 	Heightmap_normalize(m_map);
+	Heightmap_calculate_normals(m_map);
 	Heightmap_print(m_map);
 
 	m_triPool = new BTTNode[m_poolSize];
@@ -287,22 +288,15 @@ void TerrainPatch::getTessellationRecursive(
 		colors[*idx+7] = 1;
 		colors[*idx+8] = 1;
 
-		// normal calculation
-		Vec3f p1(vertices[*idx+0], vertices[*idx+1], vertices[*idx+2]);
-		Vec3f p2(vertices[*idx+3], vertices[*idx+4], vertices[*idx+5]);
-		Vec3f p3(vertices[*idx+6], vertices[*idx+7], vertices[*idx+8]);
-
-		Vec3f normal((p2 - p1).cross(p3 - p1));
-		normal.normalize();
-		normals[*idx+0] = -normal.x;
-		normals[*idx+1] = -normal.y;
-		normals[*idx+2] = -normal.z;
-		normals[*idx+3] = -normal.x;
-		normals[*idx+4] = -normal.y;
-		normals[*idx+5] = -normal.z;
-		normals[*idx+6] = -normal.x;
-		normals[*idx+7] = -normal.y;
-		normals[*idx+8] = -normal.z;
+		Heightmap_get_normal(
+			map, left_x, left_y,
+			&normals[*idx+0], &normals[*idx+1], &normals[*idx+2]);
+		Heightmap_get_normal(
+			map, right_x, right_y,
+			&normals[*idx+3], &normals[*idx+4], &normals[*idx+5]);
+		Heightmap_get_normal(
+			map, apex_x, apex_y,
+			&normals[*idx+6], &normals[*idx+7], &normals[*idx+8]);
 
 		*idx += 9;
 	}
