@@ -56,7 +56,7 @@ public:
 	 *
 	 * @param tessellation max levels
 	 */
-	void computeVariance(int maxTessellationLevels = 15);
+	void computeVariance(int maxTessellationLevels = 14);
 
 	/**
 	 * Resets the tessellation for the next frame.
@@ -69,7 +69,7 @@ public:
 	 * @param viewer position
 	 * @param allowed error margin
 	 */
-	void tessellate(const Vec3f &view, float errorMargin = 0.005);
+	void tessellate(const Vec3f &view, float errorMargin = 0.001);
 
 	/**
 	 * Get the tesselation result into vertices array

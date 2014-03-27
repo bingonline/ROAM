@@ -12,7 +12,7 @@ int main(int argc, char **argv)
 	}
 
 	TerrainPatch *patch = new TerrainPatch(argv[1]);
-	patch->computeVariance(16);
+	patch->computeVariance();
 	render(patch);
 
 	return 0;
