@@ -1,6 +1,8 @@
 #include "terrain_patch.hpp"
 #include "util.h"
 
+#include "gfx/spline.hpp"
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -100,16 +102,16 @@ void TerrainPatch::tessellate(const Vec3f &view, float errorMargin)
 	m_rightLeaves = BTTNode_number_of_leaves(m_rightRoot);
 }
 
-void TerrainPatch::getTessellation(float *vertices)
+void TerrainPatch::getTessellation(float *vertices, float *colors, float *normals)
 {
 	int idx = 0;
 	getTessellationRecursive(
-		m_leftRoot, m_map, vertices, &idx,
+		m_leftRoot, m_map, vertices, colors, normals, &idx,
 		0,                 m_map->height-1,
 		m_map->width-1, 0,
 		0,                 0);
 	getTessellationRecursive(
-		m_rightRoot, m_map, vertices, &idx,
+		m_rightRoot, m_map, vertices, colors, normals, &idx,
 		m_map->width-1, 0,
 		0,              m_map->height-1,
 		m_map->width-1, m_map->height-1);
@@ -249,7 +251,8 @@ void TerrainPatch::computeVarianceRecursive(
 }
 
 void TerrainPatch::getTessellationRecursive(
-	BTTNode *node, Heightmap *map, float *vertices, int *idx,
+	BTTNode *node, Heightmap *map,
+	float *vertices, float *colors, float *normals, int *idx,
 	int left_x, int left_y, int right_x, int right_y, int apex_x, int apex_y)
 {
 	if (node->left_child) {
@@ -257,10 +260,10 @@ void TerrainPatch::getTessellationRecursive(
 		int center_y = (left_y + right_y) / 2;
 
 		getTessellationRecursive(
-			node->left_child, map, vertices, idx,
+			node->left_child, map, vertices, colors, normals, idx,
 			apex_x, apex_y, left_x, left_y, center_x, center_y);
 		getTessellationRecursive(
-			node->right_child, map, vertices, idx,
+			node->right_child, map, vertices, colors, normals, idx,
 			right_x, right_y, apex_x, apex_y, center_x, center_y);
 	} else {
 		// we're at leaf
@@ -273,6 +276,33 @@ void TerrainPatch::getTessellationRecursive(
 		vertices[*idx+6] = (float) apex_x / map->width;
 		vertices[*idx+7] = (float) apex_y / map->height;
 		vertices[*idx+8] = Heightmap_get(map, apex_x, apex_y);
+
+		colors[*idx+0] = 1;
+		colors[*idx+1] = 1;
+		colors[*idx+2] = 1;
+		colors[*idx+3] = 1;
+		colors[*idx+4] = 1;
+		colors[*idx+5] = 1;
+		colors[*idx+6] = 1;
+		colors[*idx+7] = 1;
+		colors[*idx+8] = 1;
+
+		// normal calculation
+		Vec3f p1(vertices[*idx+0], vertices[*idx+1], vertices[*idx+2]);
+		Vec3f p2(vertices[*idx+3], vertices[*idx+4], vertices[*idx+5]);
+		Vec3f p3(vertices[*idx+6], vertices[*idx+7], vertices[*idx+8]);
+
+		Vec3f normal((p2 - p1).cross(p3 - p1));
+		normal.normalize();
+		normals[*idx+0] = -normal.x;
+		normals[*idx+1] = -normal.y;
+		normals[*idx+2] = -normal.z;
+		normals[*idx+3] = -normal.x;
+		normals[*idx+4] = -normal.y;
+		normals[*idx+5] = -normal.z;
+		normals[*idx+6] = -normal.x;
+		normals[*idx+7] = -normal.y;
+		normals[*idx+8] = -normal.z;
 
 		*idx += 9;
 	}

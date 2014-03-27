@@ -74,9 +74,15 @@ public:
 	/**
 	 * Get the tesselation result into vertices array
 	 *
-	 * @param vertices, size should be (left_num_leaves + right_num_leaves)*9
+	 * size of the given params should be at least
+	 * (left_num_leaves + right_num_leaves)*(number of elements per triangle)
+	 * as no bounds are tested
+	 *
+	 * @param vertices
+	 * @param colors
+	 * @param normals
 	 */
-	void getTessellation(float *vertices);
+	void getTessellation(float *vertices, float *colors, float *normals);
 
 	size_t amountOfLeaves() const;
 
@@ -111,7 +117,8 @@ private:
 		int apex_x,  int apex_y,  float apex_z);
 
 	void getTessellationRecursive(
-		BTTNode *node, Heightmap *map, float *vertices, int *idx,
+		BTTNode *node, Heightmap *map,
+		float *vertices, float *colors, float *normals, int *idx,
 		int left_x, int left_y, int right_x, int right_y, int apex_x, int apex_y);
 
 };

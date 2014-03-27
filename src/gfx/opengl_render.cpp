@@ -1,13 +1,16 @@
 #include "gfx/opengl_render.hpp"
 
+#include "gfx/camera/camera.hpp"
+#include "gfx/camera/first_person.hpp"
+#include "gfx/shader.hpp"
+#include "gfx/shaderpool.hpp"
+
 #include <iostream>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
 #include <GL/gl.h>
 #include <GL/glu.h>
 
-#include "gfx/camera/camera.hpp"
-#include "gfx/camera/first_person.hpp"
 
 static unsigned int last_state = -1; // make sure to print first state.
 
@@ -61,8 +64,6 @@ void setPerspectiveProjection(float fovy, float near, float far)
 		.0f       , d  , .0f               , .0f,
 		.0f       , .0f, -(far+near)/deltaZ, (-2*far*near)/deltaZ,
 		.0f       , .0f, -1.0f             , .0f);
-
-	glMultMatrixf(projectionMatrix.m);
 }
 
 void on_resize(int width, int height)
@@ -71,14 +72,8 @@ void on_resize(int width, int height)
 	screen_height = height;
 
 	glViewport(0, 0, width, height);
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
 
-	setPerspectiveProjection(90, 1, 200.0);
-	//gluPerspective(60.0f, (float) width / height, 1.0f, 5.0f);
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
+	setPerspectiveProjection(90, 1, 1000.0);
 }
 
 Vec2f generate_movement_vector(float dt)
@@ -121,6 +116,7 @@ int on_event(SDL_Event *event)
 		case SDLK_d: wasd[3] = false; break;
 		case SDLK_j:
 			std::cout << camera->getModelViewMatrix() << std::endl;
+			std::cout << "m_pos: " << camera->getPosition() << std::endl;
 			break;
 		default:
 			break;
@@ -156,9 +152,7 @@ int on_event(SDL_Event *event)
 int init_OpenGL()
 {
 	glClearColor(0.5, 0.5, 0.5, 1);
-
 	glEnable(GL_DEPTH_TEST);
-	glShadeModel(GL_SMOOTH);
 
 	return 0;
 }
@@ -171,7 +165,7 @@ int init_SDL2(int width, int height)
 	}
 
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
@@ -209,10 +203,6 @@ void render(TerrainPatch *patch)
 	}
 
 	camera = new FirstPerson(Vec3f(0, 1, 0), Vec3f(0, 0, 0));
-	//camera->forceMatrix(Mat4x4f(-0.999875,   0.0111575, -0.0112211,  22.1669,
-	//                            -0.0111999, -0.99993,    0.00372371, 25.8863,
-	//                            -0.0111788, 0.00384731,  0.99993,   -36.5337,
-	//                            0, 0, 0, 1));
 	camera->forceMatrix(Mat4x4f(0.729182, -0.68285, 0.0448257, -1.528,
 	                            0.511006, 0.586905, 0.628025, -23.0045,
 	                            -0.455157, -0.435041, 0.776898, -7.35539,
@@ -221,6 +211,23 @@ void render(TerrainPatch *patch)
 	uint32_t last = 0;
 
 	float *triPool = new float[100000*9];
+	float *colorPool = new float[100000*9];
+	float *normalPool = new float[100000*9];
+
+	GLuint buffers[3];
+	GLuint arrays[3];
+	glGenBuffers(3, buffers);
+	glGenVertexArrays(3, arrays);
+
+	glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
+	glBindVertexArray(arrays[0]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*100000*9, NULL, GL_STREAM_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
+	glBindVertexArray(arrays[1]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*100000*9, NULL, GL_STREAM_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, buffers[2]);
+	glBindVertexArray(arrays[2]);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*100000*9, NULL, GL_STREAM_DRAW);
 
 	while (running) {
 		uint32_t current = SDL_GetTicks();
@@ -234,30 +241,55 @@ void render(TerrainPatch *patch)
 		camera->onCameraMovement(generate_movement_vector(delta));
 
 		patch->reset();
-		patch->tessellate(camera->getPosition()/200);
-		patch->getTessellation(triPool);
+		patch->tessellate(camera->getPosition()/400);
+		patch->getTessellation(triPool, colorPool, normalPool);
+
+		size_t leaves = patch->amountOfLeaves();
+
+		// update the buffer data
+		glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float)*9*leaves, triPool);
+		glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float)*9*leaves, colorPool);
+		glBindBuffer(GL_ARRAY_BUFFER, buffers[2]);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float)*9*leaves, normalPool);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
 
-		camera->setupScene();
+		Shader *s = ShaderPool::instance()->get("shaders/basic-vs.glsl", "shaders/basic-fs.glsl");
+		s->enable();
+		glUniformMatrix4fv(s->getUniformLocation("u_proj_matrix"), 1, GL_FALSE, projectionMatrix.m);
 
-		glColor3f(0.0, 0, 0);
-		glScalef(200.0, 200.0, 20.0);
-		glLineWidth(2.0f);
-		glBegin(GL_LINES);
-			size_t i;
-			for (i=0; i<patch->amountOfLeaves(); ++i) {
-				int idx = i*9;
-				glVertex3f(triPool[idx+0], triPool[idx+1], triPool[idx+2]);
-				glVertex3f(triPool[idx+3], triPool[idx+4], triPool[idx+5]);
-				glVertex3f(triPool[idx+3], triPool[idx+4], triPool[idx+5]);
-				glVertex3f(triPool[idx+6], triPool[idx+7], triPool[idx+8]);
-				glVertex3f(triPool[idx+6], triPool[idx+7], triPool[idx+8]);
-				glVertex3f(triPool[idx+0], triPool[idx+1], triPool[idx+2]);
-			}
-		glEnd();
+		Mat4x4f modelview(camera->getModelViewMatrix());
+		// == glScalef(400, 400, 40);
+		modelview *= Mat4x4f(400, 0,   0,   0,
+		                     0,   400, 0,   0,
+		                     0,   0,   40,  0,
+		                     0,   0,   0,   1);
+
+		glUniformMatrix4fv(s->getUniformLocation("u_model_matrix"), 1, GL_FALSE, modelview.m);
+		Mat4x4f normalMatrix(modelview.getInverse());
+		normalMatrix.transpose();
+		glUniformMatrix4fv(s->getUniformLocation("u_normal_matrix"), 1, GL_FALSE, normalMatrix.m);
+
+		glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glBindBuffer(GL_ARRAY_BUFFER, buffers[2]);
+		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+		glDrawArrays(GL_TRIANGLES, 0, leaves*3);
+
+		glDisableVertexAttribArray(0);
+		glDisableVertexAttribArray(1);
+		glDisableVertexAttribArray(2);
+
+		s->disable();
 
 		GL_PRINT_ERROR;
 		last = current;
