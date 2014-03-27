@@ -28,6 +28,7 @@ int Shader::init()
 	// http://stackoverflow.com/questions/4635913/explicit-vs-automatic-attribute-location-binding-for-opengl-shaders/4638906#4638906
 	glBindAttribLocation(m_handle, 0, "position");
 	glBindAttribLocation(m_handle, 1, "color");
+	glBindAttribLocation(m_handle, 2, "normalTexel");
 
 	glLinkProgram(m_handle);
 

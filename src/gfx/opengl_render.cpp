@@ -218,7 +218,7 @@ void render(TerrainPatch *patch)
 
 	float *triPool = new float[poolSize*9];
 	float *colorPool = new float[poolSize*9];
-	float *normalPool = new float[poolSize*9];
+	float *normalTexelPool = new float[poolSize*6];
 
 	GLuint buffers[3];
 	GLuint arrays[3];
@@ -233,7 +233,16 @@ void render(TerrainPatch *patch)
 	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*poolSize*9, NULL, GL_STREAM_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, buffers[2]);
 	glBindVertexArray(arrays[2]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*poolSize*9, NULL, GL_STREAM_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*poolSize*6, NULL, GL_STREAM_DRAW);
+
+	// generate normal texture
+	GLuint normalTexture = 0;
+	Heightmap *map = patch->getHeightmap();
+	glGenTextures(1, &normalTexture);
+	glBindTexture(GL_TEXTURE_2D, normalTexture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, map->width, map->height, 0, GL_RGB, GL_FLOAT, map->normal_map);
 
 	while (running) {
 		uint32_t current = SDL_GetTicks();
@@ -248,7 +257,7 @@ void render(TerrainPatch *patch)
 
 		patch->reset();
 		patch->tessellate(camera->getPosition()/750);
-		patch->getTessellation(triPool, colorPool, normalPool);
+		patch->getTessellation(triPool, colorPool, normalTexelPool);
 
 		size_t leaves = patch->amountOfLeaves();
 
@@ -258,7 +267,7 @@ void render(TerrainPatch *patch)
 		glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
 		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float)*9*leaves, colorPool);
 		glBindBuffer(GL_ARRAY_BUFFER, buffers[2]);
-		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float)*9*leaves, normalPool);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float)*6*leaves, normalTexelPool);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -283,6 +292,11 @@ void render(TerrainPatch *patch)
 
 		glUniformMatrix4fv(s->getUniformLocation("u_model_matrix"), 1, GL_FALSE, modelview.m);
 
+		// normal texture
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, normalTexture);
+		glUniform1i(s->getUniformLocation("normalMap"), 0);
+
 		glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -291,7 +305,7 @@ void render(TerrainPatch *patch)
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
 		glBindBuffer(GL_ARRAY_BUFFER, buffers[2]);
 		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
 		glDrawArrays(GL_TRIANGLES, 0, leaves*3);
 

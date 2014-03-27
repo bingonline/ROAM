@@ -80,13 +80,15 @@ public:
 	 *
 	 * @param vertices
 	 * @param colors
-	 * @param normals
+	 * @param normalTexels
 	 */
-	void getTessellation(float *vertices, float *colors, float *normals);
+	void getTessellation(float *vertices, float *colors, float *normalTexels);
 
 	size_t amountOfLeaves() const;
 
 	size_t poolSize() const;
+
+	Heightmap *getHeightmap();
 
 private:
 	// PRIVATE FUNCTIONS
@@ -120,7 +122,7 @@ private:
 
 	void getTessellationRecursive(
 		BTTNode *node, Heightmap *map,
-		float *vertices, float *colors, float *normals, int *idx,
+		float *vertices, float *colors, float *normalTexels, int *idx,
 		int left_x, int left_y, int right_x, int right_y, int apex_x, int apex_y);
 
 };
@@ -133,6 +135,11 @@ inline size_t TerrainPatch::amountOfLeaves() const
 inline size_t TerrainPatch::poolSize() const
 {
 	return m_poolSize;
+}
+
+inline Heightmap *TerrainPatch::getHeightmap()
+{
+	return m_map;
 }
 
 #endif // TERRAIN_PATCH_H

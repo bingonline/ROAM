@@ -103,16 +103,16 @@ void TerrainPatch::tessellate(const Vec3f &view, float errorMargin)
 	m_rightLeaves = BTTNode_number_of_leaves(m_rightRoot);
 }
 
-void TerrainPatch::getTessellation(float *vertices, float *colors, float *normals)
+void TerrainPatch::getTessellation(float *vertices, float *colors, float *normalTexels)
 {
 	int idx = 0;
 	getTessellationRecursive(
-		m_leftRoot, m_map, vertices, colors, normals, &idx,
+		m_leftRoot, m_map, vertices, colors, normalTexels, &idx,
 		0,                 m_map->height-1,
 		m_map->width-1, 0,
 		0,                 0);
 	getTessellationRecursive(
-		m_rightRoot, m_map, vertices, colors, normals, &idx,
+		m_rightRoot, m_map, vertices, colors, normalTexels, &idx,
 		m_map->width-1, 0,
 		0,              m_map->height-1,
 		m_map->width-1, m_map->height-1);
@@ -252,7 +252,7 @@ void TerrainPatch::computeVarianceRecursive(
 
 void TerrainPatch::getTessellationRecursive(
 	BTTNode *node, Heightmap *map,
-	float *vertices, float *colors, float *normals, int *idx,
+	float *vertices, float *colors, float *normalTexels, int *idx,
 	int left_x, int left_y, int right_x, int right_y, int apex_x, int apex_y)
 {
 	if (node->left_child) {
@@ -260,10 +260,10 @@ void TerrainPatch::getTessellationRecursive(
 		int center_y = (left_y + right_y) / 2;
 
 		getTessellationRecursive(
-			node->left_child, map, vertices, colors, normals, idx,
+			node->left_child, map, vertices, colors, normalTexels, idx,
 			apex_x, apex_y, left_x, left_y, center_x, center_y);
 		getTessellationRecursive(
-			node->right_child, map, vertices, colors, normals, idx,
+			node->right_child, map, vertices, colors, normalTexels, idx,
 			right_x, right_y, apex_x, apex_y, center_x, center_y);
 	} else {
 		// we're at leaf
@@ -287,15 +287,12 @@ void TerrainPatch::getTessellationRecursive(
 		colors[*idx+7] = 1;
 		colors[*idx+8] = 1;
 
-		Heightmap_get_normal(
-			map, left_x, left_y,
-			&normals[*idx+0], &normals[*idx+1], &normals[*idx+2]);
-		Heightmap_get_normal(
-			map, right_x, right_y,
-			&normals[*idx+3], &normals[*idx+4], &normals[*idx+5]);
-		Heightmap_get_normal(
-			map, apex_x, apex_y,
-			&normals[*idx+6], &normals[*idx+7], &normals[*idx+8]);
+		normalTexels[(*idx/9)*6+0] = (float) left_x / map->width;
+		normalTexels[(*idx/9)*6+1] = (float) left_y / map->height;
+		normalTexels[(*idx/9)*6+2] = (float) right_x / map->width;
+		normalTexels[(*idx/9)*6+3] = (float) right_y / map->height;
+		normalTexels[(*idx/9)*6+4] = (float) apex_x / map->width;
+		normalTexels[(*idx/9)*6+5] = (float) apex_y / map->height;
 
 		*idx += 9;
 	}
