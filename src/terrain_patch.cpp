@@ -20,7 +20,7 @@ TerrainPatch::TerrainPatch(const char *fn, int offset_x, int offset_y)
 	, m_leftLeaves(0)
 	, m_rightLeaves(0)
 	, m_triPool(0)
-	, m_poolSize(100000)
+	, m_poolSize(125000)
 	, m_poolNext(0)
 {
 	m_map = Heightmap_read(fn);
@@ -196,13 +196,12 @@ void TerrainPatch::tessellateRecursive(
 {
 	float center_x = (left_x + right_x) * 0.5f;
 	float center_y = (left_y + right_y) * 0.5f;
-	//float variance = 0;
 
 	if (variance_idx < m_varianceSize) {
 		float a = center_x/m_map->width - view.x;
 		float b = center_y/m_map->height - view.y;
-		float distance = sqrtf(a*a + b*b);
-		float variance = (variance_tree[variance_idx])/MIN(distance, 1);
+		float distance = 1 + (a*a + b*b);
+		float variance = variance_tree[variance_idx]/distance;
 
 		if (variance > errorMargin) {
 			split(node);

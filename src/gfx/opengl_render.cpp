@@ -49,6 +49,9 @@ SDL_GLContext context;
 
 Mat4x4f projectionMatrix;
 
+// shading model
+bool wireframe = false;
+
 Camera *camera;
 bool wasd[4] = { false, false, false, false };
 
@@ -78,7 +81,7 @@ void on_resize(int width, int height)
 
 Vec2f generate_movement_vector(float dt)
 {
-	const float speed = 25.0f * dt;
+	const float speed = 35.0f * dt;
 	Vec2f movement;
 
 	if (wasd[0] ^ wasd[2])
@@ -114,6 +117,7 @@ int on_event(SDL_Event *event)
 		case SDLK_a: wasd[1] = false; break;
 		case SDLK_s: wasd[2] = false; break;
 		case SDLK_d: wasd[3] = false; break;
+		case SDLK_1: wireframe = !wireframe; break;
 		case SDLK_j:
 			std::cout << camera->getModelViewMatrix() << std::endl;
 			std::cout << "m_pos: " << camera->getPosition() << std::endl;
@@ -210,9 +214,11 @@ void render(TerrainPatch *patch)
 	int running = 1;
 	uint32_t last = 0;
 
-	float *triPool = new float[100000*9];
-	float *colorPool = new float[100000*9];
-	float *normalPool = new float[100000*9];
+	const size_t poolSize = patch->poolSize();
+
+	float *triPool = new float[poolSize*9];
+	float *colorPool = new float[poolSize*9];
+	float *normalPool = new float[poolSize*9];
 
 	GLuint buffers[3];
 	GLuint arrays[3];
@@ -221,13 +227,13 @@ void render(TerrainPatch *patch)
 
 	glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
 	glBindVertexArray(arrays[0]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*100000*9, NULL, GL_STREAM_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*poolSize*9, NULL, GL_STREAM_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
 	glBindVertexArray(arrays[1]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*100000*9, NULL, GL_STREAM_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*poolSize*9, NULL, GL_STREAM_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, buffers[2]);
 	glBindVertexArray(arrays[2]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*100000*9, NULL, GL_STREAM_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*poolSize*9, NULL, GL_STREAM_DRAW);
 
 	while (running) {
 		uint32_t current = SDL_GetTicks();
@@ -241,7 +247,7 @@ void render(TerrainPatch *patch)
 		camera->onCameraMovement(generate_movement_vector(delta));
 
 		patch->reset();
-		patch->tessellate(camera->getPosition()/400);
+		patch->tessellate(camera->getPosition()/750);
 		patch->getTessellation(triPool, colorPool, normalPool);
 
 		size_t leaves = patch->amountOfLeaves();
@@ -257,21 +263,25 @@ void render(TerrainPatch *patch)
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+		if (wireframe) {
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			glLineWidth(2.0);
+		} else {
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		}
+
 		Shader *s = ShaderPool::instance()->get("shaders/basic-vs.glsl", "shaders/basic-fs.glsl");
 		s->enable();
 		glUniformMatrix4fv(s->getUniformLocation("u_proj_matrix"), 1, GL_FALSE, projectionMatrix.m);
 
 		Mat4x4f modelview(camera->getModelViewMatrix());
-		// == glScalef(400, 400, 40);
-		modelview *= Mat4x4f(400, 0,   0,   0,
-		                     0,   400, 0,   0,
-		                     0,   0,   40,  0,
+		// == glScalef(750, 750, 50);
+		modelview *= Mat4x4f(750, 0,   0,   0,
+		                     0,   750, 0,   0,
+		                     0,   0,   50,  0,
 		                     0,   0,   0,   1);
 
 		glUniformMatrix4fv(s->getUniformLocation("u_model_matrix"), 1, GL_FALSE, modelview.m);
-		Mat4x4f normalMatrix(modelview.getInverse());
-		normalMatrix.transpose();
-		glUniformMatrix4fv(s->getUniformLocation("u_normal_matrix"), 1, GL_FALSE, normalMatrix.m);
 
 		glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
 		glEnableVertexAttribArray(0);

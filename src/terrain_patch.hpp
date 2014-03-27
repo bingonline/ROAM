@@ -56,7 +56,7 @@ public:
 	 *
 	 * @param tessellation max levels
 	 */
-	void computeVariance(int maxTessellationLevels = 14);
+	void computeVariance(int maxTessellationLevels = 15);
 
 	/**
 	 * Resets the tessellation for the next frame.
@@ -69,7 +69,7 @@ public:
 	 * @param viewer position
 	 * @param allowed error margin
 	 */
-	void tessellate(const Vec3f &view, float errorMargin = 0.025);
+	void tessellate(const Vec3f &view, float errorMargin = 0.005);
 
 	/**
 	 * Get the tesselation result into vertices array
@@ -85,6 +85,8 @@ public:
 	void getTessellation(float *vertices, float *colors, float *normals);
 
 	size_t amountOfLeaves() const;
+
+	size_t poolSize() const;
 
 private:
 	// PRIVATE FUNCTIONS
@@ -126,6 +128,11 @@ private:
 inline size_t TerrainPatch::amountOfLeaves() const
 {
 	return m_leftLeaves + m_rightLeaves;
+}
+
+inline size_t TerrainPatch::poolSize() const
+{
+	return m_poolSize;
 }
 
 #endif // TERRAIN_PATCH_H
