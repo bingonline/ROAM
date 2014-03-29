@@ -11,9 +11,9 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	TerrainPatch *patch = new TerrainPatch(argv[1]);
-	patch->computeVariance();
-	render(patch);
+	TerrainPatch patch(argv[1]);
+	patch.computeVariance();
+	render(&patch);
 
 	return 0;
 }

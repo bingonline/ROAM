@@ -320,4 +320,7 @@ void render(TerrainPatch *patch)
 		SDL_GL_SwapWindow(window);
 	}
 
+	glDeleteTextures(1, &normalTexture);
+	glDeleteVertexArrays(3, arrays);
+	glDeleteBuffers(3, buffers);
 }

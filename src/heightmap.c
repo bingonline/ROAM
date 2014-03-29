@@ -17,6 +17,8 @@ void Heightmap_print(Heightmap *map)
 	printf("  m_map: %p\n", map->map);
 	printf("  m_map[0]: %f\n", map->map[0]);
 	printf("  m_map[last]: %f\n", map->map[map->width*map->height - 1]);
+	printf("  min: %f\n", map->minZ);
+	printf("  max: %f\n", map->maxZ);
 
 	size_t histogram[11] = {0};
 	size_t i;
@@ -63,27 +65,33 @@ Heightmap *Heightmap_read(const char *filename)
 
 	fscanf(fd, "%lu ", &map->width);
 	fscanf(fd, "%lu", &map->height);
-	//map->height = map->width;
 
 	map->map = malloc(map->width*map->height*sizeof(float));
 	memset(map->map, 0, map->width*map->height*sizeof(float));
 
 	float *ptr = map->map;
 
-	size_t x, y;
+	size_t i;
 
-	for (y=0; y<map->height; ++y) {
-		for (x=0; x<map->width; ++x) {
-			fscanf(fd, "%f", ptr);
-			map->minZ = MIN(map->minZ, *ptr);
-			map->maxZ = MAX(map->maxZ, *ptr);
-			++ptr;
-		}
+	for (i=0; i<map->height*map->width; ++i) {
+		fscanf(fd, "%f", ptr);
+		map->minZ = MIN(map->minZ, *ptr);
+		map->maxZ = MAX(map->maxZ, *ptr);
+		++ptr;
 	}
 
 	fclose(fd);
 
 	return map;
+}
+
+void Heightmap_delete(Heightmap *map)
+{
+	if (map->map)
+		free(map->map);
+	if (map->normal_map)
+		free(map->normal_map);
+	free(map);
 }
 
 void Heightmap_normalize(Heightmap *map)

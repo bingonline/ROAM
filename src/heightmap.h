@@ -40,6 +40,15 @@ void Heightmap_print(Heightmap *map);
 Heightmap *Heightmap_read(const char *filename);
 
 /**
+ * Delete the heightmap from memory.
+ *
+ * After this call the given pointer is invalid.
+ *
+ * @param heightmap to delete
+ */
+void Heightmap_delete(Heightmap *map);
+
+/**
  * Normalizes the given heightmap so that all values are between [0, 1]
  *
  * @param map heightmap

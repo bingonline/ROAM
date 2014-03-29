@@ -39,6 +39,14 @@ TerrainPatch::TerrainPatch(const char *fn, int offset_x, int offset_y)
 	m_rightRoot = allocateNode();
 }
 
+TerrainPatch::~TerrainPatch()
+{
+	delete [] m_triPool;
+	delete [] m_leftVariance;
+	delete [] m_rightVariance;
+	Heightmap_delete(m_map);
+}
+
 void TerrainPatch::print() const
 {
 	printf("TerrainPatch {\n");

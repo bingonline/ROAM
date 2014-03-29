@@ -43,6 +43,7 @@ public:
 	 * @param y offset on world
 	 */
 	TerrainPatch(const char *fn, int offset_x = 0, int offset_y = 0);
+	~TerrainPatch();
 
 	/**
 	 * Debug print the terrain patch data
